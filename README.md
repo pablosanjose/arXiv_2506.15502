@@ -1,4 +1,4 @@
-Code to generate data and figures for preprint arXiv:2506.15502
+Code to generate data and figures for preprint [arXiv:2506.15502](https://arxiv.org/abs/2506.15502)
 
 Usage:
 - Install Julia v1.10 with `juliaup`
