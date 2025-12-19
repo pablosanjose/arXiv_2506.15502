@@ -5,18 +5,20 @@ using ChunkSplitters
 using Quantica
 using Quantica: σ
 using LinearAlgebra
+using Random
 
 default_params = (;
     ħ2ome = 76.2,
     N = 1000,
     m = 0.065,
     µ = 2,
-    R = 2000)
+    R = 2000,
+    seed = 1)
 
 build(; kw...) = build(merge(default_params, NamedTuple(kw)))
 
 function build(params)
-    (; R, ħ2ome, m, N, µ) = params
+    (; R, ħ2ome, m, N, µ, seed) = params
     a0 = R * 2sin(π / N)
     a0max = a0 * (R + a0) / R
     t = ħ2ome / (2m * a0^2)
@@ -44,10 +46,16 @@ function build(params)
     Δinduced2 =
         @onsite((r; Δ=0.23, Δ0 = Δ, Δ1 = Δ, n0=0, n=1, ϕ=0) -> Δ0 * fluxoid2(r, n0) + Δ1 * fluxoid2(r, n, ϕ), sublats = :N)
 
-    hN2 = latN |> hamiltonian(kineticN2 + Δinduced2, orbitals=2)
-    hN = latN |> hamiltonian(kineticN + SOC + Δinduced + Zeeman, orbitals=4)
-    p = latN |> hamiltonian(momentum, orbitals=4)
+    rng = Xoshiro(seed)
+    anderson = randn(rng, N)
+    anderson .-= mean(anderson)
+    amplitudes = randn(rng, ComplexF64, N)
+    smooth = [sum(k -> sqrt(2)*real(cis(2π * k * n/N) * amplitudes[k]/k^2), 1:N) for n in 1:N]
+    disorder = @onsite((i; σa = 0.0, σs = 0.0, seed = 1) --> (anderson[ind(i)] * σa + smooth[ind(i)] * σs)  * σ.zI)
 
+    hN2 = latN |> hamiltonian(kineticN2 + Δinduced2, orbitals=2)
+    hN = latN |> hamiltonian(kineticN + SOC + Δinduced + Zeeman + disorder, orbitals=4)
+    p = latN |> hamiltonian(momentum, orbitals=4)
 
     result = (; hN2, hN, p, kF, hvF, R, t, a0, ϵ1)
     return result

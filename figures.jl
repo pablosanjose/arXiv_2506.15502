@@ -1,6 +1,5 @@
 # using GLMakie
 using CairoMakie
-using MakieTeX
 using ProgressMeter
 using ArnoldiMethod, Arpack, LinearMaps
 using JLD2
@@ -109,7 +108,7 @@ includet("../code.jl")
         end
 
         f = figure2(data2, 37:40)
-        save("figure2.pdf", f)
+        save("figures/figure2.pdf", f)
 
 ## Figure 3
     ## Data
@@ -253,7 +252,7 @@ includet("../code.jl")
         end
 
         f = figure3((data1, data2, data3, data4), (dataode1, dataode2, dataode3), λs)
-        save("figure3.pdf", f)
+        save("figures/figure3.pdf", f)
 
 ## Figure 4
     ## Data
@@ -342,4 +341,124 @@ includet("../code.jl")
         end
 
         f = figure4(data1, data2, data3, data4)
-        save("figure4.pdf", f)
+        save("figures/figure4.pdf", f)
+
+## Figures 5+6 - disorder
+
+    ## Test
+        params = (; R = 1000, N = 1000, ϕ = 0, n = 0.50001, Δ1 = 0.2, Δ0 = 0.2, α = 3, Vz=0.0)
+        (; hN, t) = build(; params...)
+        spectrum(hN; solver = ES.ShiftInvert(ES.ArnoldiMethod(nev = 4), 0), params..., µN = 2*t*(1+0.4), σs = 0.0) |> energies
+        spectrum(hN; solver = ES.ShiftInvert(ES.ArnoldiMethod(nev = 4), 0), params..., µN = 2*t*(1+0.4), σs = 0.2) |> energies
+
+    ## Data - load data_figure4 first
+        params = (; R = 1000, N = 1000, ϕ = 0, n = 0.50001, Δ1 = 0.2, Δ0 = 0.2, α = 3, Vz=0.0, σa = 0.2)
+        data1 = data_figure4(range(-1.01,1.01,400); nev = 48, params...)
+        (; hN) = build(; params...)
+        disorderA = real.(first.(diag(hN(; params...)[unflat()])))
+        disorderA .-= mean(disorderA)
+
+        params = (; R = 1000, N = 1000, ϕ = 0, n = 0.505, Δ1 = 0.2, Δ0 = 0.2, α = 3, Vz=0.0, σa = 0.2)
+        data2 = data_figure4(range(-1.01,1.01,400); nev = 48, params...)
+
+        params = (; R = 1000, N = 1000, ϕ = 0, n = 0.55, Δ1 = 0.2, Δ0 = 0.2, α = 3, Vz=0.0, σa = 0.2)
+        data3 = data_figure4(range(-1.01,1.01,400); nev = 48, params...)
+
+        params = (; R = 1000, N = 1000, ϕ = 0, n = 0.85, Δ1 = 0.2, Δ0 = 0.25, α = 3, Vz=0.0, σa = 0.2)
+        data4 = data_figure4(range(-1.01,1.01,400); nev = 48, params...)
+
+        params = (; R = 1000, N = 1000, ϕ = 0, n = 0.50001, Δ1 = 0.2, Δ0 = 0.2, α = 3, Vz=0.0, σs = 0.2)
+        data1´ = data_figure4(range(-1.01,1.01,400); nev = 48, params...)
+        (; hN) = build(; params...)
+        disorderS = real.(first.(diag(hN(; params...)[unflat()])))
+        disorderS .-= mean(disorderS)
+
+        params = (; R = 1000, N = 1000, ϕ = 0, n = 0.505, Δ1 = 0.2, Δ0 = 0.2, α = 3, Vz=0.0, σs = 0.2)
+        data2´ = data_figure4(range(-1.01,1.01,400); nev = 48, params...)
+
+        params = (; R = 1000, N = 1000, ϕ = 0, n = 0.55, Δ1 = 0.2, Δ0 = 0.2, α = 3, Vz=0.0, σs = 0.2)
+        data3´ = data_figure4(range(-1.01,1.01,400); nev = 48, params...)
+
+        params = (; R = 1000, N = 1000, ϕ = 0, n = 0.85, Δ1 = 0.2, Δ0 = 0.25, α = 3, Vz=0.0, σs = 0.2)
+        data4´ = data_figure4(range(-1.01,1.01,400); nev = 48, params...)
+
+        jldsave("figures/fig5_data.jld2"; data1, data2, data3, data4, data1´, data2´, data3´, data4´, disorderA, disorderS)
+
+    ## Plots
+        @load "figures/fig5_data.jld2" data1 data2 data3 data4 data1´ data2´ data3´ data4´
+
+        function figure56(data1, data2, data3, data4, disorder; dtitle = L"", dylabel = L"")
+            fig = Figure(size = (600, 700))
+
+            common = (; xlabelsize = 16, ylabelsize = 16, xgridvisible = false)
+            labelcommon = (; fontsize = 16, padding = (0, 40, 0, 0), halign = :right)
+
+            ## (a) ##
+            ax = Axis(fig[1, 1];
+                title = L"\Delta_0 = \Delta_1,\,\, \Phi/\Phi_0 \approx 0.5",
+                xlabel = L"\mu/W", ylabel = L"\epsilon \text{[meV]}",
+                limits = (nothing, (-0.5,0.5)), common...)
+            # lightcolor = Makie.RGBA(0.9,0.9,0.9)
+            # qplot!(data4.b; color = lightcolor, hide = :bands)
+            cs = ColorScheme([colorant"red", colorant"gray"])
+            qplot!(data1.b; color = (ψ, ϵ, ϕs) -> ifelse(abs(ϵ)<0.05,0,1), colormap = cs, hide = :bands, nodesizefactor = 2)
+            # text!(ax, 0.7, 0.01; text = L"\times 4", color = :red, fontsize = 12)
+            # text!(ax, 0.85, 0.105; text = L"\times 2", color = :grey, fontsize = 12)
+            # text!(ax, 0.85, -0.09; text = L"\times 2", color = :grey, fontsize = 12)
+            # hidexdecorations!(ax, grid = false, ticks = false)
+            Label(fig.layout[1, 1, TopLeft()], "(a)"; labelcommon...)
+
+            ## (b) ##
+            ax = Axis(fig[1, 2];
+                title = L"\Delta_0 > \Delta_1,\,\, \Phi/\Phi_0 > 0.5",
+                xlabel = L"\mu/W", ylabel = L"\epsilon \text{[meV]}",
+                limits = (nothing, (-0.5,0.5)), common...)
+            # lightcolor = Makie.RGBA(0.9,0.9,0.9)
+            # qplot!(data4.b; color = lightcolor, hide = :bands)
+            cs = ColorScheme([colorant"red", colorant"gray"])
+            qplot!(data4.b; color = (ψ, ϵ, ϕs) -> ifelse(abs(ϵ)<0.05,0,1), colormap = cs, hide = :bands, nodesizefactor = 2)
+            # text!(ax, 0.7, 0.04; text = L"\times 2", color = :red, fontsize = 12)
+            # text!(ax, 0.7, -0.09; text = L"\times 2", color = :red, fontsize = 12)
+            hideydecorations!(ax, ticks = false)
+            Label(fig.layout[1, 2, TopLeft()], "(b)"; labelcommon..., padding = (0, 10, 0, 0))
+
+            ## (c) ##
+            ax = Axis(fig[2, 1:2];
+                title = L"\text{residual splitting at $\Delta_0 = \Delta_1$ with disorder}",
+                xlabel = L"\mu/W", ylabel = L"\delta\epsilon^\alpha \text{[$\mu$eV]}",
+                # limits = (nothing, (-0.05,-0.022)),
+                ygridvisible = false,
+                common...)
+            colors = (:blue, :green, :orange)
+            for (data, color) in zip((data1, data2, data3), colors)
+                (; xs, ϵs, n) = data
+                δϵ = (((ϵ1,ϵ2),) -> 1e3*abs(ϵ1-ϵ2)).(ϵs)
+                lines!(ax, xs, δϵ; color, label = "$(round(n, digits = 3))")
+            end
+             (; xs, ϵs, α, R, n) = data3
+            δϵa = [1e3*α/R * n * abs(x) for x in xs]
+            lines!(ax, xs, δϵa, color = :black, linestyle = :dash)
+            axislegend(ax, L"\Phi/\Phi_0"; position = :ct, orientation = :horizontal)
+            Label(fig.layout[2, 1, TopLeft()], "(c)"; labelcommon...)
+
+            ## (d) ##
+            ax = Axis(fig[3, 1:2];
+                title = dtitle,
+                xlabel = L"\varphi", ylabel = dylabel,
+                xticks = (0:0.5:1, ["0","π","2π"]),
+                # limits = (nothing, (-0.05,-0.022)),
+                ygridvisible = false,
+                common...)
+            lines!(ax, range(0, 1, length = length(disorder)), disorder; color = :black)
+            Label(fig.layout[3, 1, TopLeft()], "(d)"; labelcommon...)
+
+
+            rowsize!(fig.layout, 2, Auto(0.5))
+            rowsize!(fig.layout, 3, Auto(0.5))
+            return fig
+        end
+
+        f = figure56(data1, data2, data3, data4, disorderA; dtitle = L"Anderson disorder realisation ($\sigma_A = \Delta_1 = 0.2$meV)", dylabel = L"V(\varphi) \text{[meV]}")
+        f´ = figure56(data1´, data2´, data3´, data4´, disorderS; dtitle = L"Smooth disorder realisation ($\sigma_S = \Delta_1 = 0.2$meV)", dylabel = L"V(\varphi) \text{[meV]}")
+        save("figures/figure5.pdf", f)
+        save("figures/figure6.pdf", f´)
