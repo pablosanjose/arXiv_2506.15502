@@ -1,3 +1,6 @@
+
+[![DOI](https://zenodo.org/badge/1028977392.svg)](https://doi.org/10.5281/zenodo.18196879)
+
 Code to generate data and figures for preprint [arXiv:2506.15502](https://arxiv.org/abs/2506.15502)
 
 Usage:
